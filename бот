@@ -1,0 +1,65 @@
+import telebot
+
+TOKEN = '1755830481:AAGlfsWFS0JJPUmS9VivD07MnT5A7p_ovJo'
+bot = telebot.TeleBot(TOKEN)
+
+import requests
+import json
+
+keys = {
+    "евро": "EUR",
+    "доллар": "USD",
+    "рубль": "RUB"
+}
+class ConvertionException(Exception):
+    pass
+class valuesConverter:
+    @staticmethod
+    def get_price(base: str, quote: str, amount: str):
+        if len(values) != 3:
+            raise ConvertionException('слишком много символов.')
+        quote, base, amount = values
+        if quote == base:
+            raise ConvertionException('нинада так')
+        try:
+            base_ticker = keys[base]
+        except KeyError:
+            raise ConvertionException(f"что то не так тут {base}")
+        try:
+            quote_ticker = keys[quote]
+        except KeyError:
+            raise ConvertionException(f"что то не так тут {quote}")
+        try:
+            amount = float(amount)
+        except ValueError:
+            raise ConvertionException("что то не так тут")
+
+@bot.message_handler(commands=['start', 'help'])
+def help(messege: telebot.types.Message):
+    text = 'Чтобы начать работу необходимо отправить сообщение в следующем формате:\n' \
+           '<целевая валюта> <исходная валюта> <сумма перевода>\n' \
+           'Увидеть список доступных валют: /values'
+    bot.reply_to(messege, text)
+
+@bot.message_handler(commands=['values'])
+def values(message: telebot.types.Message):
+    text = 'Доступные валюты: \n'
+    for key in keys.keys():
+       text = '\n'.join((text, key, ))
+    bot.reply_to(message, text)
+
+@bot.message_handler(content_types=['text'])
+def convert(message: telebot.types.Message):
+    values = message.text.split(' ')
+
+    if len(values) != 3:
+        raise ConvertionException("что то не так тут")
+    quote, base, amount = values
+    quote_ticker = keys[quote]
+    base_ticker = keys[base]
+
+    r = requests.get(f'https://api.exchangeratesapi.io/latest?symbols={quote_ticker}&base={base_ticker}')
+    total_base = json.loads(r.content)[keys[base]]
+    text = f'Цена{amount} {quote} в {base} - {total_base}'
+    bot.send_message(message.chat.id, text)
+bot.polling()
